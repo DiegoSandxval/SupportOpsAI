@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SupportOps.Application.Abstractions.Persistence;
 using SupportOps.Domain.Entities;
+using SupportOps.Domain.Enums;
 
 namespace SupportOps.Infrastructure.Persistence.Repositories;
 
@@ -60,5 +61,37 @@ public sealed class UserRepository : IUserRepository
             user,
             cancellationToken
         );
+    }
+
+    public async Task<IReadOnlyList<User>> GetActiveAgentsAsync(
+    CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.Role == UserRole.Agent &&
+                user.IsActive
+            )
+            .OrderBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .ToListAsync(cancellationToken);
+    }
+    public async Task<IReadOnlyList<User>> GetByIdsAsync(
+    IReadOnlyCollection<Guid> ids,
+    CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _dbContext.Users
+            .AsNoTracking()
+            .Where(user =>
+                ids.Contains(user.Id)
+            )
+            .ToListAsync(
+                cancellationToken
+            );
     }
 }

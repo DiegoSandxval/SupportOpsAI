@@ -44,6 +44,7 @@ public sealed class GetTicketByIdHandler
         return new GetTicketByIdResponse(
             ticket.Id,
             ticket.Title,
+            ticket.Description,
             ticket.Status.ToString(),
             ticket.Priority.ToString(),
             ticket.Category.ToString(),

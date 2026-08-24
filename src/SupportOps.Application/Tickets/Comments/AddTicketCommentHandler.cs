@@ -10,16 +10,19 @@ public sealed class AddTicketCommentHandler
     private readonly ITicketCommentRepository _commentRepository;
     private readonly ITicketHistoryRepository _historyRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserRepository _userRepository;
 
     public AddTicketCommentHandler(
         ITicketRepository ticketRepository,
         ITicketCommentRepository commentRepository,
         ITicketHistoryRepository historyRepository,
+        IUserRepository userRepository,
         IUnitOfWork unitOfWork)
     {
         _ticketRepository = ticketRepository;
         _commentRepository = commentRepository;
         _historyRepository = historyRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -95,11 +98,20 @@ public sealed class AddTicketCommentHandler
         await _unitOfWork.SaveChangesAsync(
             cancellationToken
         );
+        var commentUser =
+            await _userRepository.GetByIdAsync(
+                userId,
+                cancellationToken
+            );
+
+        var userFullName =
+            commentUser?.GetFullName();
 
         return new TicketCommentResponse(
             comment.Id,
             comment.TicketId,
             comment.UserId,
+            userFullName,
             comment.Message,
             comment.IsInternal,
             comment.CreatedAtUtc

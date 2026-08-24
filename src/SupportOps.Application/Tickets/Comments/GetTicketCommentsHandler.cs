@@ -5,69 +5,129 @@ namespace SupportOps.Application.Tickets.Comments;
 
 public sealed class GetTicketCommentsHandler
 {
-    private readonly ITicketRepository _ticketRepository;
-    private readonly ITicketCommentRepository _commentRepository;
+    private readonly ITicketRepository
+        _ticketRepository;
+
+    private readonly ITicketCommentRepository
+        _commentRepository;
+
+    private readonly IUserRepository
+        _userRepository;
 
     public GetTicketCommentsHandler(
         ITicketRepository ticketRepository,
-        ITicketCommentRepository commentRepository)
+        ITicketCommentRepository commentRepository,
+        IUserRepository userRepository)
     {
-        _ticketRepository = ticketRepository;
-        _commentRepository = commentRepository;
+        _ticketRepository =
+            ticketRepository;
+
+        _commentRepository =
+            commentRepository;
+
+        _userRepository =
+            userRepository;
     }
 
-    public async Task<IReadOnlyList<TicketCommentResponse>?> HandleAsync(
+    public async Task<
+        IReadOnlyList<TicketCommentResponse>?
+    > HandleAsync(
         Guid ticketId,
         Guid userId,
         UserRole role,
         CancellationToken cancellationToken = default)
     {
         var ticket =
-            await _ticketRepository.GetByIdAsync(
-                ticketId,
-                cancellationToken
-            );
+            await _ticketRepository
+                .GetByIdAsync(
+                    ticketId,
+                    cancellationToken
+                );
 
         if (ticket is null)
         {
             return null;
         }
 
-        if (role == UserRole.User &&
-            ticket.CreatedByUserId != userId)
+        if (
+            role == UserRole.User &&
+            ticket.CreatedByUserId != userId
+        )
         {
             return null;
         }
 
-        if (role != UserRole.User &&
+        if (
+            role != UserRole.User &&
             role != UserRole.Agent &&
-            role != UserRole.Admin)
+            role != UserRole.Admin
+        )
         {
             throw new UnauthorizedAccessException();
         }
 
         var comments =
-            await _commentRepository.GetByTicketIdAsync(
-                ticketId,
-                cancellationToken
-            );
+            await _commentRepository
+                .GetByTicketIdAsync(
+                    ticketId,
+                    cancellationToken
+                );
 
-        // Users must never see internal staff comments.
         var visibleComments =
-            role == UserRole.User
-                ? comments.Where(x => !x.IsInternal)
-                : comments;
+            (
+                role == UserRole.User
+                    ? comments.Where(
+                        comment =>
+                            !comment.IsInternal
+                    )
+                    : comments
+            )
+            .ToList();
+
+        var userIds =
+            visibleComments
+                .Select(
+                    comment =>
+                        comment.UserId
+                )
+                .Distinct()
+                .ToArray();
+
+        var users =
+            await _userRepository
+                .GetByIdsAsync(
+                    userIds,
+                    cancellationToken
+                );
+
+        var userNames =
+            users.ToDictionary(
+                user => user.Id,
+                user =>
+                    user.GetFullName()
+            );
 
         return visibleComments
             .Select(comment =>
-                new TicketCommentResponse(
+            {
+                var userFullName =
+                    userNames.TryGetValue(
+                        comment.UserId,
+                        out var name
+                    )
+                        ? name
+                        : "Unknown User";
+
+                return new TicketCommentResponse(
                     comment.Id,
                     comment.TicketId,
                     comment.UserId,
+                    userFullName,
                     comment.Message,
                     comment.IsInternal,
                     comment.CreatedAtUtc
-                ))
+                );
+            })
             .ToList();
     }
 }

@@ -16,7 +16,16 @@ public interface IUserRepository
         string email,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<User>> GetActiveAgentsAsync(
+        CancellationToken cancellationToken = default
+    );
+
     Task AddAsync(
         User user,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<User>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default
+    );
 }
+

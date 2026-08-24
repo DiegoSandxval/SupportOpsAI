@@ -24,6 +24,7 @@ using SupportOps.Application.Tickets.Analyze;
 using OpenAI.Responses;
 using SupportOps.Application.Abstractions.AI;
 using SupportOps.Infrastructure.AI;
+using SupportOps.Application.Users.GetAgents;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,8 +44,21 @@ builder.Services.AddScoped<GetTicketByIdHandler>();
 builder.Services.AddScoped<UpdateTicketHandler>();
 builder.Services.AddScoped<CreateUserHandler>();
 builder.Services.AddScoped<GetTicketHistoryHandler>();
-builder.Services.AddScoped<AnalyzeTicketHandler>();
-
+builder.Services.AddScoped<GetAgentsHandler>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "SupportOpsFront",
+        policy =>
+        {
+            policy
+                .WithOrigins(
+                    "http://localhost:5173"
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(
@@ -109,33 +123,9 @@ builder.Services.AddScoped<CreateTicketHandler>();
 builder.Services.AddScoped<GetTicketsHandler>();
 builder.Services.AddScoped<AddTicketCommentHandler>();
 builder.Services.AddScoped<GetTicketCommentsHandler>();
-var openAiApiKey =
-    builder.Configuration["OpenAI:ApiKey"]
-    ?? throw new InvalidOperationException(
-        "OpenAI API key is not configured."
-    );
 
-var openAiModel =
-    builder.Configuration["OpenAI:Model"]
-    ?? "gpt-5-mini";
 
-builder.Services.AddSingleton(
-    new ResponsesClient(openAiApiKey)
-);
 
-builder.Services.AddScoped<ITicketAiAnalyzer>(
-    serviceProvider =>
-    {
-        var client =
-            serviceProvider
-                .GetRequiredService<ResponsesClient>();
-
-        return new OpenAiTicketAnalyzer(
-            client,
-            openAiModel
-        );
-    }
-);
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
@@ -181,6 +171,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("SupportOpsFront");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -741,6 +732,24 @@ app.MapPost(
     )
     .WithName("AnalyzeTicket")
     .WithTags("AI");
+app.MapGet(
+    "/api/users/agents",
+    async (
+        GetAgentsHandler handler,
+        CancellationToken cancellationToken) =>
+    {
+        var agents =
+            await handler.HandleAsync(
+                cancellationToken
+            );
+
+        return Results.Ok(agents);
+    })
+    .RequireAuthorization(
+        AuthorizationPolicies.SupportStaff
+    )
+    .WithName("GetActiveAgents")
+    .WithTags("Users");
 app.Run();
 
 

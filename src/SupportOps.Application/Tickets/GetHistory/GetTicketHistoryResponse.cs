@@ -4,6 +4,7 @@ public sealed record GetTicketHistoryResponse(
     Guid Id,
     Guid TicketId,
     Guid ChangedByUserId,
+    string ChangedByUserName,
     string Action,
     string? PreviousValue,
     string? NewValue,

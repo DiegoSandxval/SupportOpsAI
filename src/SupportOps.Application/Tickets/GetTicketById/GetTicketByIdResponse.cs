@@ -3,6 +3,7 @@
 public sealed record GetTicketByIdResponse(
     Guid Id,
     string Title,
+    string Description,
     string Status,
     string Priority,
     string Category,
