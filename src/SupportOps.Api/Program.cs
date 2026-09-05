@@ -25,6 +25,9 @@ using OpenAI.Responses;
 using SupportOps.Application.Abstractions.AI;
 using SupportOps.Infrastructure.AI;
 using SupportOps.Application.Users.GetAgents;
+using SupportOps.Application.Users.GetAll;
+using SupportOps.Application.Users.Profile;
+using SupportOps.Application.Users.ChangePassword;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,7 +47,11 @@ builder.Services.AddScoped<GetTicketByIdHandler>();
 builder.Services.AddScoped<UpdateTicketHandler>();
 builder.Services.AddScoped<CreateUserHandler>();
 builder.Services.AddScoped<GetTicketHistoryHandler>();
+builder.Services.AddScoped<GetUsersHandler>();
 builder.Services.AddScoped<GetAgentsHandler>();
+builder.Services.AddScoped<UpdateProfileHandler>();
+builder.Services.AddScoped<ChangePasswordHandler>();
+builder.Services.AddScoped<GetProfileHandler>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
@@ -750,6 +757,200 @@ app.MapGet(
     )
     .WithName("GetActiveAgents")
     .WithTags("Users");
+app.MapGet(
+    "/api/users",
+    async (
+        GetUsersHandler handler,
+        CancellationToken cancellationToken) =>
+    {
+        var users =
+            await handler.HandleAsync(
+                cancellationToken
+            );
+
+        return Results.Ok(users);
+    })
+    .RequireAuthorization()
+    .WithName("GetUsers")
+    .WithTags("Users");
+app.MapPatch(
+    "/api/profile",
+    async (
+        UpdateProfileRequest request,
+        UpdateProfileHandler handler,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue =
+            user.FindFirstValue(
+                ClaimTypes.NameIdentifier
+            );
+
+        if (
+            !Guid.TryParse(
+                userIdValue,
+                out var userId
+            )
+        )
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            var response =
+                await handler.HandleAsync(
+                    userId,
+                    request,
+                    cancellationToken
+                );
+
+            return Results.Ok(
+                response
+            );
+        }
+        catch (
+            DuplicateEmailException exception
+        )
+        {
+            return Results.Conflict(
+                new
+                {
+                    message =
+                        exception.Message
+                }
+            );
+        }
+        catch (
+            KeyNotFoundException exception
+        )
+        {
+            return Results.NotFound(
+                new
+                {
+                    message =
+                        exception.Message
+                }
+            );
+        }
+        catch (
+            ArgumentException exception
+        )
+        {
+            return Results.BadRequest(
+                new
+                {
+                    message =
+                        exception.Message
+                }
+            );
+        }
+    })
+    .RequireAuthorization()
+    .WithName("UpdateProfile")
+    .WithTags("Profile");
+app.MapPatch(
+    "/api/profile/password",
+    async (
+        ChangePasswordRequest request,
+        ChangePasswordHandler handler,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue =
+            user.FindFirstValue(
+                ClaimTypes.NameIdentifier
+            );
+
+        if (
+            !Guid.TryParse(
+                userIdValue,
+                out var userId
+            )
+        )
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            await handler.HandleAsync(
+                userId,
+                request,
+                cancellationToken
+            );
+
+            return Results.Ok(
+                new
+                {
+                    message =
+                        "Password updated successfully."
+                }
+            );
+        }
+        catch (
+            KeyNotFoundException exception
+        )
+        {
+            return Results.NotFound(
+                new
+                {
+                    message =
+                        exception.Message
+                }
+            );
+        }
+        catch (
+            ArgumentException exception
+        )
+        {
+            return Results.BadRequest(
+                new
+                {
+                    message =
+                        exception.Message
+                }
+            );
+        }
+    })
+    .RequireAuthorization()
+    .WithName("ChangePassword")
+    .WithTags("Profile");
+app.MapGet(
+    "/api/profile",
+    async (
+        GetProfileHandler handler,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken) =>
+    {
+        var userIdValue =
+            user.FindFirstValue(
+                ClaimTypes.NameIdentifier
+            );
+
+        if (
+            !Guid.TryParse(
+                userIdValue,
+                out var userId
+            )
+        )
+        {
+            return Results.Unauthorized();
+        }
+
+        var profile =
+            await handler.HandleAsync(
+                userId,
+                cancellationToken
+            );
+
+        return profile is null
+            ? Results.NotFound()
+            : Results.Ok(profile);
+    })
+    .RequireAuthorization()
+    .WithName("GetProfile")
+    .WithTags("Profile");
 app.Run();
 
 

@@ -94,4 +94,13 @@ public sealed class UserRepository : IUserRepository
                 cancellationToken
             );
     }
+    public async Task<IReadOnlyList<User>> GetAllAsync(
+    CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .OrderBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -138,4 +138,21 @@ public class User : Entity
 
         MarkAsUpdated();
     }
+    public void ChangeEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ArgumentException(
+                "Email is required.",
+                nameof(email)
+            );
+        }
+
+        Email =
+            email
+                .Trim()
+                .ToLowerInvariant();
+
+        MarkAsUpdated();
+    }
 }

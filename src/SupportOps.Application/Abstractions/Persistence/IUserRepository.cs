@@ -27,5 +27,8 @@ public interface IUserRepository
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default
     );
+    Task<IReadOnlyList<User>> GetAllAsync(
+    CancellationToken cancellationToken = default
+);
 }
 
